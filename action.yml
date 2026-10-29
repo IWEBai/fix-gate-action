@@ -1,0 +1,71 @@
+name: "Fix Gate"
+description: "Verifies a security-fix pull request, whoever wrote it: targeted finding gone, nothing new in the changed lines, files still parse, tests not newly failed. Rule-based, on your runner."
+author: "Railo"
+branding:
+  icon: "check-square"
+  color: "green"
+
+inputs:
+  github_token:
+    description: "Token used to create the check run. The automatic GITHUB_TOKEN with checks: write is enough."
+    required: false
+    default: ${{ github.token }}
+  base_branch:
+    description: "Branch the pull request targets. Leave empty to use the pull request's base branch."
+    required: false
+    default: ""
+  rule:
+    description: "Rule id of the finding this pull request fixes (for example python-sqli-fstring). With file, names the targeted finding instead of inferring it."
+    required: false
+    default: ""
+  file:
+    description: "Path of the file the targeted finding is in."
+    required: false
+    default: ""
+  line:
+    description: "Line of the targeted finding at base, to pick between several in one file."
+    required: false
+    default: ""
+  require_resolved:
+    description: "'true' fails the gate when no base finding was resolved at all, so a change that fixes nothing cannot pass as a fix."
+    required: false
+    default: "false"
+  tests_result:
+    description: "Your test job's outcome (success, failure, skipped), for example ${{ needs.test.result }}. Without it the tests row is reported as not run."
+    required: false
+    default: ""
+  timeout:
+    description: "Seconds allowed for the two scans. A scan that runs out of time is reported as not run, never as a pass."
+    required: false
+    default: "120"
+  fail_on_failure:
+    description: "'false' reports a failed gate without failing the job."
+    required: false
+    default: "true"
+
+outputs:
+  conclusion:
+    description: "success, failure or neutral"
+  finding:
+    description: "pass, fail, neutral or not_run: the targeted finding is gone"
+  new:
+    description: "pass, fail or not_run: nothing new in the changed lines"
+  parse:
+    description: "pass, fail, neutral or not_run: the changed files still parse"
+  tests:
+    description: "pass, fail, neutral or not_run: the tests did not newly fail"
+
+runs:
+  using: "docker"
+  image: "docker://ghcr.io/iwebai/railo:v2"
+  env:
+    GITHUB_TOKEN: ${{ inputs.github_token }}
+    INPUT_MODE: "fix-gate"
+    INPUT_BASE_BRANCH: ${{ inputs.base_branch }}
+    INPUT_RULE: ${{ inputs.rule }}
+    INPUT_FILE: ${{ inputs.file }}
+    INPUT_LINE: ${{ inputs.line }}
+    INPUT_REQUIRE_RESOLVED: ${{ inputs.require_resolved }}
+    INPUT_TESTS_RESULT: ${{ inputs.tests_result }}
+    INPUT_TIMEOUT: ${{ inputs.timeout }}
+    INPUT_FAIL_ON_FAILURE: ${{ inputs.fail_on_failure }}
