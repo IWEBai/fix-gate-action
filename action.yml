@@ -1,5 +1,5 @@
 name: "Fix Gate"
-description: "Verifies a security-fix pull request, whoever wrote it: targeted finding gone, nothing new in the changed lines, files still parse, tests not newly failed. Rule-based, on your runner."
+description: "Verifies a security-fix pull request: finding gone, nothing new, files parse, tests pass. Rule-based, on your runner."
 author: "Railo"
 branding:
   icon: "check-square"
