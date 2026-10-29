@@ -31,7 +31,7 @@ inputs:
     required: false
     default: "false"
   tests_result:
-    description: "Your test job's outcome (success, failure, skipped), for example ${{ needs.test.result }}. Without it the tests row is reported as not run."
+    description: "Your test job's outcome (success, failure, skipped); pass the needs.<job>.result expression. Without it the tests row is reported as not run."
     required: false
     default: ""
   timeout:
