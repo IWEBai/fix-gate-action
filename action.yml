@@ -26,6 +26,10 @@ inputs:
     description: "Line of the targeted finding at base, to pick between several in one file."
     required: false
     default: ""
+  alert:
+    description: "Number of a code-scanning alert this pull request fixes. Targets its file and line (and its rule when the alert came from Railo). Needs security-events: read."
+    required: false
+    default: ""
   require_resolved:
     description: "'true' fails the gate when no base finding was resolved at all, so a change that fixes nothing cannot pass as a fix."
     required: false
@@ -65,6 +69,7 @@ runs:
     INPUT_RULE: ${{ inputs.rule }}
     INPUT_FILE: ${{ inputs.file }}
     INPUT_LINE: ${{ inputs.line }}
+    INPUT_ALERT: ${{ inputs.alert }}
     INPUT_REQUIRE_RESOLVED: ${{ inputs.require_resolved }}
     INPUT_TESTS_RESULT: ${{ inputs.tests_result }}
     INPUT_TIMEOUT: ${{ inputs.timeout }}

@@ -76,6 +76,7 @@ To fill the tests row, run your tests in a job named `test` first, then:
 | `rule` | | Rule id of the finding the pull request fixes. With `file`, names the targeted finding instead of inferring it. |
 | `file` | | Path of the file the finding is in. |
 | `line` | | Line of the finding at base, to pick between several in one file. |
+| `alert` | | Number of a code-scanning alert the pull request fixes. Targets its file and line, and its rule when the alert came from Railo; another tool's rule is matched by file and line and Railo's rules decide. Needs `security-events: read`. |
 | `require_resolved` | `false` | `true` fails the gate when no base finding was resolved at all, so a change that fixes nothing cannot pass as a fix. |
 | `tests_result` | | Your test job's outcome: `success`, `failure` or `skipped`. |
 | `timeout` | `120` | Seconds for the two scans. A timeout is reported as not run. |
@@ -98,7 +99,7 @@ The token on a fork pull request is read-only, so the check run cannot be create
 
 ## Permissions
 
-`contents: read` to read the repository, `checks: write` to create the check run, `pull-requests: write` only if you ask for a comment. Fix Gate never pushes, never needs `security-events`, and never writes under `.github/workflows`.
+`contents: read` to read the repository, `checks: write` to create the check run, `pull-requests: write` only if you ask for a comment. `security-events: read` only if you pass `alert`. Fix Gate never pushes and never writes under `.github/workflows`.
 
 ## Telemetry
 
