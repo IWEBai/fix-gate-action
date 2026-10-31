@@ -77,6 +77,8 @@ To fill the tests row, run your tests in a job named `test` first, then:
 | `file` | | Path of the file the finding is in. |
 | `line` | | Line of the finding at base, to pick between several in one file. |
 | `alert` | | Number of a code-scanning alert the pull request fixes. Targets its file and line, and its rule when the alert came from Railo; another tool's rule is matched by file and line and Railo's rules decide. Needs `security-events: read`. |
+| `sarif_base` | | Path to a SARIF file from another tool's scan of the base commit (CodeQL, Snyk, Semgrep). Each finding in the changed files must be matched by a Railo finding in the same file, by CWE or line, that is gone at head. A finding Railo's rules do not match is reported as not run, never as gone. |
+| `comment` | `false` | `true` also posts the verdict as one pull request comment, edited in place on later runs. Needs `pull-requests: write`. |
 | `require_resolved` | `false` | `true` fails the gate when no base finding was resolved at all, so a change that fixes nothing cannot pass as a fix. |
 | `tests_result` | | Your test job's outcome: `success`, `failure` or `skipped`. |
 | `timeout` | `120` | Seconds for the two scans. A timeout is reported as not run. |
@@ -88,7 +90,7 @@ Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail
 
 ## What it reports as *not run*
 
-- Findings from other tools (CodeQL, Snyk, a pentest). Railo's rules are the ones re-run; other tools' rules are not, so the gate does not claim their finding is gone.
+- Findings from other tools (CodeQL, Snyk, a pentest) that Railo's rules do not also report. With `sarif_base`, a finding is matched to a Railo finding in the same file by CWE or line and confirmed gone only through that match; an unmatched one is not run. Without `sarif_base`, other tools' findings are not considered at all.
 - Go, Ruby and C# files in the parse check.
 - The tests row, unless `tests_result` is passed.
 - A scan that timed out, or more than 200 changed files.
