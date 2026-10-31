@@ -99,6 +99,13 @@ Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail
 
 The token on a fork pull request is read-only, so the check run cannot be created. The verdict is written to the job summary instead, and the job's exit code still reflects it.
 
+## Pull requests from AI tools
+
+Fix Gate runs on any pull request, whoever wrote it: Copilot Autofix, Copilot's coding agent, Snyk, an editor assistant, or a person.
+
+- **Copilot's coding agent.** GitHub does not start workflows on a pull request the agent pushes to until someone clicks **Approve and run workflows** on it. That is GitHub's rule for agent pull requests, not Fix Gate's; the check appears once you approve.
+- **A fix for another tool's finding.** A Copilot Autofix pull request usually fixes a CodeQL alert. When Railo's rules report the same finding, Fix Gate confirms it is gone. When they do not, the first row reads *nothing to check* and the check reads *Fix not confirmed*, while the other three rows are still checked and the summary lists what held. To judge the alert itself, pass its number as `alert` (with `security-events: read`) or the base scan as `sarif_base`.
+
 ## Permissions
 
 `contents: read` to read the repository, `checks: write` to create the check run, `pull-requests: write` only if you ask for a comment. `security-events: read` only if you pass `alert`. Fix Gate never pushes and never writes under `.github/workflows`.
