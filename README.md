@@ -36,14 +36,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
   checks: write
 
 jobs:
   fix-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -53,6 +52,8 @@ jobs:
 
 `fetch-depth: 0` matters: the gate compares against the commit the pull request branched from.
 
+To also get the verdict as a pull request comment, add `pull-requests: write` under `permissions` and `with: comment: true` to the Fix Gate step.
+
 To fill the tests row, run your tests in a job named `test` first, then:
 
 ```yaml
@@ -61,7 +62,7 @@ To fill the tests row, run your tests in a job named `test` first, then:
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -114,11 +115,23 @@ Fix Gate runs on any pull request, whoever wrote it: Copilot Autofix, Copilot's 
 
 ## Telemetry
 
-One usage ping per run with the repository name, the mode (`fix-gate`), the Action version, and counts. Never file content. Set `RAILO_TELEMETRY: "0"` in the step's `env` to turn it off.
+One usage record per run: the organization and repository name, the plan, the mode (`fix-gate`), the Action version, the number of targeted and resolved findings, and the scan duration. Never file content. Set `RAILO_TELEMETRY: "0"` in the step's `env` and nothing is sent to Railo.
 
 ## Source
 
-This repository holds the Action definition. The engine runs from the `ghcr.io/iwebai/railo` image published by [Railo](https://www.railo.dev); the gate logic is `core/fix_gate.py` there. The same checks are how Railo verifies the fixes it writes itself in a [Fix Sprint](https://www.railo.dev/pentest-remediation).
+This repository holds the Action definition. The engine runs from Railo's image, `ghcr.io/iwebai/railo`, pinned by digest in `action.yml`, so a given tag of this Action always runs the same image. A comment next to the digest names the engine version.
+
+The engine is not open source. Its Python modules are compiled in the image, so the gate logic cannot be read there. What you can inspect:
+
+- **The rules.** They ship as plain YAML under `/app/rules` in the image, and the check run names the rule and line behind every fail.
+- **What leaves the job.** The usage record described under Telemetry, and nothing at all to Railo when `RAILO_TELEMETRY` is `"0"`. No file content is sent to Railo either way.
+- **The verdict.** Each row says pass, fail, nothing to check or not run, and why.
+
+The same checks are how Railo verifies the fixes it writes itself in a [Fix Sprint](https://www.railo.dev/pentest-remediation).
+
+## Security
+
+To report a vulnerability in this Action or the engine image, see [SECURITY.md](SECURITY.md).
 
 ## Licence
 

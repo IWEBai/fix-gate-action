@@ -69,7 +69,8 @@ outputs:
 
 runs:
   using: "docker"
-  image: "docker://ghcr.io/iwebai/railo:v2"
+  # Railo engine v2.6.9, pinned by digest so this tag always runs the same image.
+  image: "docker://ghcr.io/iwebai/railo@sha256:b1e5aff5dedb177f06212340b0ab338c3940856eff4213f860c8e3caaafbf19e"
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
     INPUT_MODE: "fix-gate"
