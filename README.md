@@ -19,7 +19,9 @@ It is rule-based: the verdict comes from running the same rules twice and compar
 
 ## Why
 
-In August 2026, 1Password tested 6,080 security patches written by two frontier models: 26% were fully correct and 54% left the vulnerability in place, introduced a new one, or both ([their write-up](https://1password.com/blog/why-ai-generated-patches-still-require-human-review)). GitHub counts an Autofix as successful only when the alert is gone, no new alert appeared, the file still parses and the tests still pass. Fix Gate applies that same bar to every fix pull request and reports each part separately.
+How often AI-written security patches are wrong is disputed. In August 2026, 1Password reported that 26% of 6,080 patches from two frontier models were fully correct ([their write-up](https://1password.com/blog/why-ai-generated-patches-still-require-human-review)). Trail of Bits reanalysed the same data, keeping only the trials where the models could run code and were not told to apply the wrong fix: 86% blocked the supplied exploit, which they note does not prove a complete fix ([their reanalysis](https://blog.trailofbits.com/2026/09/15/1passwords-ai-patching-benchmark-is-misleading/)). Their own records add that one in eight first fixes by developers did not fully resolve the issue.
+
+Whoever writes a fix, it needs checking. GitHub counts an Autofix as successful only when the alert is gone, no new alert appeared, the file still parses and the tests still pass. Fix Gate applies that same bar to every fix pull request and reports each part separately.
 
 ## Install
 
