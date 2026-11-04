@@ -1,5 +1,5 @@
 name: "Fix Gate"
-description: "Verifies a security-fix pull request: finding gone, nothing new, files parse, tests pass. Rule-based, on your runner."
+description: "Verifies a security-fix pull request: finding gone, nothing new, files parse, tests pass, guard holds against known bypasses. Rule-based, on your runner."
 author: "Railo"
 branding:
   icon: "check-square"
@@ -54,6 +54,10 @@ inputs:
     description: "'false' reports a failed gate without failing the job."
     required: false
     default: "true"
+  guard_bypass:
+    description: "'true' runs the validator function the pull request adds against Railo's published list of known bypass payloads for its weakness class, in a restricted subprocess on your runner, on pull_request events only. 'false' leaves that row as not run."
+    required: false
+    default: "true"
 
 outputs:
   conclusion:
@@ -66,11 +70,13 @@ outputs:
     description: "pass, fail, neutral or not_run: the changed files still parse"
   tests:
     description: "pass, fail, neutral or not_run: the tests did not newly fail"
+  guard:
+    description: "pass, fail, neutral or not_run: the validator the change added rejected every listed bypass"
 
 runs:
   using: "docker"
-  # Railo engine v2.6.9, pinned by digest so this tag always runs the same image.
-  image: "docker://ghcr.io/iwebai/railo@sha256:b1e5aff5dedb177f06212340b0ab338c3940856eff4213f860c8e3caaafbf19e"
+  # Railo engine v2.7.0, pinned by digest so this tag always runs the same image.
+  image: "docker://ghcr.io/iwebai/railo@sha256:9520e7a90500ff46bd63fe6c4427f7cafb2b7777c7b75e7d499ca2d584ed2284"
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
     INPUT_MODE: "fix-gate"
@@ -85,3 +91,4 @@ runs:
     INPUT_TESTS_RESULT: ${{ inputs.tests_result }}
     INPUT_TIMEOUT: ${{ inputs.timeout }}
     INPUT_FAIL_ON_FAILURE: ${{ inputs.fail_on_failure }}
+    INPUT_GUARD_BYPASS: ${{ inputs.guard_bypass }}
