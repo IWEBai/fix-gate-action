@@ -2,7 +2,7 @@
 
 **Was that security fix actually a fix?**
 
-Fix Gate is a free GitHub Action that verifies a security-fix pull request, whoever or whatever wrote it: GitHub Copilot Autofix, Snyk Agent Fix, an editor assistant, or a person. It answers four questions and posts them as a check run named **Fix Gate**:
+Fix Gate is a free GitHub Action that verifies a security-fix pull request, whoever or whatever wrote it: GitHub Copilot Autofix, Snyk Agent Fix, an editor assistant, or a person. It answers five questions and posts them as a check run named **Fix Gate**:
 
 | Check | How |
 |---|---|
@@ -10,10 +10,13 @@ Fix Gate is a free GitHub Action that verifies a security-fix pull request, whoe
 | Nothing new in the changed lines | A finding at head with no counterpart at base, inside the changed lines, fails. A pre-existing finding that only shifted lines does not. |
 | Changed files still parse | Python, JavaScript, TypeScript, Java and PHP are parse-checked. A file that already failed to parse at base is not held against the change. |
 | Tests did not newly fail | Taken from your own test job's result (`tests_result`). Without it, this row says *not run*. |
+| Guard holds against known bypasses | The validator function the change adds (a predicate such as `is_safe_path`, or a sanitizer such as `clean_redirect`) is extracted and called on a fixed list of known bypass payloads for its weakness class: path traversal, open redirect, SSRF, argument injection. A fail quotes the payloads it accepted. A change that adds no standalone validator says *nothing to check*. |
 
 Each row is **pass**, **fail**, **nothing to check** or **not run**. A check that could not run is shown as not run. It is never counted as a pass.
 
 It is rule-based: the verdict comes from running the same rules twice and comparing, plus a parser. No language model reads your code. The scans run inside your own GitHub Actions job; no file content leaves it.
+
+The guard row is the one place code from the pull request runs: that one function, with the literal constants and helpers it uses, in a separate Python interpreter the Action starts with no environment, no token and no path into the repository, under memory and CPU limits, with an import allowlist (`re`, `os.path`, `posixpath`, `pathlib`, `urllib.parse`, `ipaddress`, `string`, `unicodedata`, `html`, `typing`, `shlex`, `fnmatch`) and without the file, process and network builtins. It runs only on `pull_request` events, never on `pull_request_target`, and `guard_bypass: "false"` switches it off. The list is finite and ships as plain YAML in the image; a pass means the function rejected every entry on it, nothing more.
 
 **Status: beta (v0.x).** The rules are the ones behind Railo's published [failure-rate study](https://www.railo.dev/research/autofix-11-repositories), and they will miss things. The check run always shows the rule and line behind a fail, so a reviewer can judge it.
 
@@ -86,10 +89,11 @@ To fill the tests row, run your tests in a job named `test` first, then:
 | `tests_result` | | Your test job's outcome: `success`, `failure` or `skipped`. |
 | `timeout` | `120` | Seconds for the two scans. A timeout is reported as not run. |
 | `fail_on_failure` | `true` | `false` reports a failed gate without failing the job. |
+| `guard_bypass` | `true` | Runs the validator the pull request adds against the bypass list, in a restricted subprocess, on `pull_request` events only. `false` leaves that row as not run. |
 | `base_branch` | | Branch the pull request targets; defaults to the pull request's base. |
 | `github_token` | `github.token` | Token used to create the check run. |
 
-Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail`, `neutral`, `not_run` for each of `finding`, `new`, `parse`, `tests`.
+Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail`, `neutral`, `not_run` for each of `finding`, `new`, `parse`, `tests`, `guard`.
 
 ## What it reports as *not run*
 
@@ -97,6 +101,7 @@ Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail
 - Go, Ruby and C# files in the parse check.
 - The tests row, unless `tests_result` is passed.
 - A scan that timed out, or more than 200 changed files.
+- The guard row, when the validator needs something outside the sandbox (a framework setting, a network call, a class), takes more than one argument, is a method, takes too long on a payload, or when the event is not `pull_request`. The row names the reason. A fix that guards inline, inside the function that does the work, is *nothing to check*, and the row names that function.
 
 ## Pull requests from forks
 
@@ -107,7 +112,7 @@ The token on a fork pull request is read-only, so the check run cannot be create
 Fix Gate runs on any pull request, whoever wrote it: Copilot Autofix, Copilot's coding agent, Snyk, an editor assistant, or a person.
 
 - **Copilot's coding agent.** GitHub does not start workflows on a pull request the agent pushes to until someone clicks **Approve and run workflows** on it. That is GitHub's rule for agent pull requests, not Fix Gate's; the check appears once you approve.
-- **A fix for another tool's finding.** A Copilot Autofix pull request usually fixes a CodeQL alert. When Railo's rules report the same finding, Fix Gate confirms it is gone. When they do not, the first row reads *nothing to check* and the check reads *Fix not confirmed*, while the other three rows are still checked and the summary lists what held. To judge the alert itself, pass its number as `alert` (with `security-events: read`) or the base scan as `sarif_base`.
+- **A fix for another tool's finding.** A Copilot Autofix pull request usually fixes a CodeQL alert. When Railo's rules report the same finding, Fix Gate confirms it is gone. When they do not, the first row reads *nothing to check* and the check reads *Fix not confirmed*, while the other rows are still checked and the summary lists what held. To judge the alert itself, pass its number as `alert` (with `security-events: read`) or the base scan as `sarif_base`.
 
 ## Permissions
 
@@ -124,6 +129,7 @@ This repository holds the Action definition. The engine runs from Railo's image,
 The engine is not open source. Its Python modules are compiled in the image, so the gate logic cannot be read there. What you can inspect:
 
 - **The rules.** They ship as plain YAML under `/app/rules` in the image, and the check run names the rule and line behind every fail.
+- **The bypass list.** One YAML file per weakness class under `/app/guard_bypass/payloads` in the image, each entry with its technique and whether it is unsafe under any base or host; the check run quotes the entries a validator accepted.
 - **What leaves the job.** The usage record described under Telemetry, and nothing at all to Railo when `RAILO_TELEMETRY` is `"0"`. No file content is sent to Railo either way.
 - **The verdict.** Each row says pass, fail, nothing to check or not run, and why.
 
