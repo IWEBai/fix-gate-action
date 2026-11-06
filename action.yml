@@ -54,6 +54,10 @@ inputs:
     description: "'false' reports a failed gate without failing the job."
     required: false
     default: "true"
+  fail_on_not_run:
+    description: "'true' makes the conclusion failure, not neutral, when the finding or new rows could not run (scan timed out or crashed, more than 200 changed files, base commit not found, the ignore file changed, an external finding Railo's rules do not match). Empty means true when rule, file, line, alert or sarif_base is given or require_resolved is true, and false otherwise. Rows not run by design (tests without tests_result, a language without a parser, guard_bypass off) never fail the gate."
+    required: false
+    default: ""
   guard_bypass:
     description: "'true' runs the validator function the pull request adds against Railo's published list of known bypass payloads for its weakness class, in a restricted subprocess on your runner, on pull_request events only. 'false' leaves that row as not run."
     required: false
@@ -75,8 +79,8 @@ outputs:
 
 runs:
   using: "docker"
-  # Railo engine v2.7.0, pinned by digest so this tag always runs the same image.
-  image: "docker://ghcr.io/iwebai/railo@sha256:9520e7a90500ff46bd63fe6c4427f7cafb2b7777c7b75e7d499ca2d584ed2284"
+  # Railo engine v2.8.1, pinned by digest so this tag always runs the same image.
+  image: "docker://ghcr.io/iwebai/railo@sha256:e4a80520f07b5a3ae01f6b1955b23c3f4542c8167827cf1e823fd671cfaf2e73"
   env:
     GITHUB_TOKEN: ${{ inputs.github_token }}
     INPUT_MODE: "fix-gate"
@@ -91,4 +95,5 @@ runs:
     INPUT_TESTS_RESULT: ${{ inputs.tests_result }}
     INPUT_TIMEOUT: ${{ inputs.timeout }}
     INPUT_FAIL_ON_FAILURE: ${{ inputs.fail_on_failure }}
+    INPUT_FAIL_ON_NOT_RUN: ${{ inputs.fail_on_not_run }}
     INPUT_GUARD_BYPASS: ${{ inputs.guard_bypass }}

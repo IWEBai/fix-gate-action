@@ -7,16 +7,16 @@ Fix Gate is a free GitHub Action that verifies a security-fix pull request, whoe
 | Check | How |
 |---|---|
 | Targeted finding gone | Railo's rules run over the base and head versions of every changed file. The finding reported at base, inside the changed lines, must no longer match at head. |
-| Nothing new in the changed lines | A finding at head with no counterpart at base, inside the changed lines, fails. A pre-existing finding that only shifted lines does not. |
+| Nothing new in the changed lines | A finding at head with no counterpart at base fails, whether it starts inside the changed lines or on a line the change made a rule match. A pre-existing finding that only shifted lines does not. A finding in a test, fixture or mock path (`tests/`, `__tests__/`, `spec/`, `test_*.py`, `*_test.go`, `*.test.ts`, `*Test.java` and the like) is listed under "In test files" and not judged, unless `file`, `alert` or `sarif_base` names that file. |
 | Changed files still parse | Python, JavaScript, TypeScript, Java and PHP are parse-checked. A file that already failed to parse at base is not held against the change. |
 | Tests did not newly fail | Taken from your own test job's result (`tests_result`). Without it, this row says *not run*. |
 | Guard holds against known bypasses | The validator function the change adds (a predicate such as `is_safe_path`, or a sanitizer such as `clean_redirect`) is extracted and called on a fixed list of known bypass payloads for its weakness class: path traversal, open redirect, SSRF, argument injection. A fail quotes the payloads it accepted. A change that adds no standalone validator says *nothing to check*. |
 
-Each row is **pass**, **fail**, **nothing to check** or **not run**. A check that could not run is shown as not run. It is never counted as a pass.
+Each row is **pass**, **fail**, **nothing to check** or **not run**. A check that could not run is shown as not run. It is never counted as a pass. When the run names a target (`rule`, `file`, `line`, `alert`, `sarif_base`) or sets `require_resolved`, a finding or new row that could not run fails the gate instead of leaving it neutral (`fail_on_not_run`, below).
 
-It is rule-based: the verdict comes from running the same rules twice and comparing, plus a parser. No language model reads your code. The scans run inside your own GitHub Actions job; no file content leaves it.
+It is rule-based: the verdict comes from running the same rules twice and comparing, plus a parser. No language model reads your code. The scans run inside your own GitHub Actions job; no file content leaves it. The ignore file (`.railoignore`) is read from the commit the pull request branched from, never from the pull request's own checkout; a pull request that changes the ignore file has its finding and new rows reported as not run.
 
-The guard row is the one place code from the pull request runs: that one function, with the literal constants and helpers it uses, in a separate Python interpreter the Action starts with no environment, no token and no path into the repository, under memory and CPU limits, with an import allowlist (`re`, `os.path`, `posixpath`, `pathlib`, `urllib.parse`, `ipaddress`, `string`, `unicodedata`, `html`, `typing`, `shlex`, `fnmatch`) and without the file, process and network builtins. It runs only on `pull_request` events, never on `pull_request_target`, and `guard_bypass: "false"` switches it off. The list is finite and ships as plain YAML in the image; a pass means the function rejected every entry on it, nothing more.
+The guard row is the one place code from the pull request runs: that one function, with the literal constants and helpers it uses. What the sandbox is: a static allowlist at extraction (imports limited to `re`, `os.path`, `posixpath`, `pathlib`, `urllib.parse`, `ipaddress`, `string`, `unicodedata`, `html`, `typing`, `shlex`, `fnmatch`; no double-underscore names or attributes, no `getattr`/`setattr`/`type`/`super`/`object`/`vars`/`globals`/`locals`, no class bodies; a function that uses any of these is reported as not run), then a separate Python interpreter started with no environment, no token and no path into the repository, a restricted set of builtins without file, process, network or reflection access, memory, CPU, file-size, open-file and process-count limits, and, when the Action runs as root, switched to the `nobody` user before the function loads (a run that cannot drop privileges is reported as not run, never run as root). What it is not: a container or virtual-machine boundary. It is a separate unprivileged process on the same runner, in the same job, and should be read as such. It runs only on `pull_request` events, never on `pull_request_target`, and `guard_bypass: "false"` switches it off. The list is finite and ships as plain YAML in the image; a pass means the function rejected every entry on it, nothing more.
 
 **Status: beta (v0.x).** The rules are the ones behind Railo's published [failure-rate study](https://www.railo.dev/research/autofix-11-repositories), and they will miss things. The check run always shows the rule and line behind a fail, so a reviewer can judge it.
 
@@ -89,7 +89,8 @@ To fill the tests row, run your tests in a job named `test` first, then:
 | `tests_result` | | Your test job's outcome: `success`, `failure` or `skipped`. |
 | `timeout` | `120` | Seconds for the two scans. A timeout is reported as not run. |
 | `fail_on_failure` | `true` | `false` reports a failed gate without failing the job. |
-| `guard_bypass` | `true` | Runs the validator the pull request adds against the bypass list, in a restricted subprocess, on `pull_request` events only. `false` leaves that row as not run. |
+| `fail_on_not_run` | see note | `true` makes the conclusion failure, not neutral, when the finding or new rows could not run: the scan timed out or crashed, more than 200 files changed, the base commit was not found, the ignore file changed, or an external finding has no Railo rule match. Defaults to `true` when `rule`, `file`, `line`, `alert` or `sarif_base` is given or `require_resolved` is true, otherwise `false`. Rows not run by design (tests without `tests_result`, a language without a parser, `guard_bypass` off) never fail the gate. |
+| `guard_bypass` | `true` | Runs the validator the pull request adds against the bypass list, in a separate unprivileged subprocess, on `pull_request` events only. `false` leaves that row as not run. |
 | `base_branch` | | Branch the pull request targets; defaults to the pull request's base. |
 | `github_token` | `github.token` | Token used to create the check run. |
 
@@ -101,7 +102,12 @@ Outputs: `conclusion` (`success`, `failure`, `neutral`) and one of `pass`, `fail
 - Go, Ruby and C# files in the parse check.
 - The tests row, unless `tests_result` is passed.
 - A scan that timed out, or more than 200 changed files.
-- The guard row, when the validator needs something outside the sandbox (a framework setting, a network call, a class), takes more than one argument, is a method, takes too long on a payload, or when the event is not `pull_request`. The row names the reason. A fix that guards inline, inside the function that does the work, is *nothing to check*, and the row names that function.
+- A pull request that changes `.railoignore` (the finding and new rows). The patterns applied are the base commit's.
+- A finding in a test, fixture or mock path: reported with a notice annotation, not judged, so a test's mock token or a test that writes outside the root on purpose does not fail the gate. Name the file as the target to have it judged.
+- The guard row, when the validator needs something outside the sandbox (a framework setting, a network call, a class), uses a construct the sandbox refuses (a double-underscore name, `getattr`, `type`, and the like), takes more than one argument, is a method, takes too long on a payload, or when the event is not `pull_request`. The row names the reason. A fix that guards inline, inside the function that does the work, is *nothing to check*, and the row names that function.
+- A finding whose file the pull request deleted is *nothing to check* ("file removed, not fixed") when a target was named or `require_resolved` is set; otherwise it counts as gone and the summary says the file was deleted.
+
+With `fail_on_not_run` on, the first two of these fail the gate instead of leaving it neutral.
 
 ## Pull requests from forks
 
