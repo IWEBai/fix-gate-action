@@ -26,6 +26,23 @@ How often AI-written security patches are wrong is disputed. In August 2026, 1Pa
 
 Whoever writes a fix, it needs checking. GitHub counts an Autofix as successful only when the alert is gone, no new alert appeared, the file still parses and the tests still pass. Fix Gate applies that same bar to every fix pull request and reports each part separately.
 
+## See it on real pull requests
+
+Eight pull requests on a public demo repository, each with its Fix Gate check run visible. Two are unedited Copilot Autofix output on the same code. All eight re-ran on v0.4.2 on 8 November 2026.
+
+| Pull request | Verdict | What happened |
+|---|---|---|
+| [#11](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/11) Fix SQL injection and the hard-coded database password | verified | Parameterised query, password from the environment. Finding gone, nothing new, files parse. |
+| [#12](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/12) Sanitise the user id before the query | not verified | The query was rewritten but is still built from the input; the targeted finding is still present at head. |
+| [#13](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/13) Fix SQL injection and the database password, add a dump helper for support | not verified | The fix is real; the helper added beside it introduces a new finding in the changed lines. |
+| [#14](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/14) Copilot Autofix: SQL injection in /user | verified | Unedited Copilot Autofix output. Finding gone, nothing new, files parse. |
+| [#15](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/15) Copilot Autofix: command injection in /ping | not verified | Unedited Copilot Autofix output: an argument list and an allowlist, but a value starting with `-` still becomes a ping option. A new finding in the changed lines. |
+| [#16](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/16) Sanitise the report name before joining it to the report directory | not verified | A strip-once sanitiser. The guard row called it on 35 path-traversal payloads and quoted the 10 it let through. |
+| [#17](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/17) Keep report downloads inside the report directory | verified | Guards inline with the `commonpath` idiom, so there is no validator to call; the guard row says nothing to check and names the idiom. |
+| [#18](https://github.com/zariffromlatif/railo-e2e-scan-demo/pull/18) Only redirect to a path on this site after login | verified | A redirect validator. The guard row called it on the open-redirect list: 28 of 28 rejected, two context-dependent forms noted. |
+
+The demo repository is Railo's and the findings in it are planted; the two Copilot pull requests are GitHub's output on that code, as submitted. The page at https://www.railo.dev/fix-gate says the same with the five checks spelled out.
+
 ## Install
 
 Commit this as `.github/workflows/fix-gate.yml`:
